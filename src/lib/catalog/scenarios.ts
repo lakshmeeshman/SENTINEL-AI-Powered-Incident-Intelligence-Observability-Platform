@@ -74,7 +74,7 @@ export const SCENARIOS: Scenario[] = [
       { target: "orders-service", level: "ERROR", text: "HikariPool-1 - Connection is not available, request timed out after {ms}ms (total=64, active=64, idle=0, waiting={n})", rate: 3.2, gateway: true },
       { target: "payments-service", level: "ERROR", text: "pq: sorry, too many clients already (pool=payments-rw, wait={ms}ms)", rate: 1.6, gateway: true },
       { target: "user-service", level: "WARN", text: "db query exceeded 1000ms budget: SELECT * FROM accounts WHERE id = $1 ({ms}ms)", rate: 0.9 },
-      { target: "origin", level: "WARN", text: "connection slots nearly exhausted: {n2}/500 in use (role=orders_rw)", rate: 0.8 },
+      { target: "origin", level: "WARN", text: "connection slots nearly exhausted: {hi}/500 in use (role=orders_rw)", rate: 0.8 },
       { target: "origin", level: "FATAL", text: "remaining connection slots are reserved for non-replication superuser connections", rate: 0.35 },
     ],
     change: { kind: "deploy", service: "orders-service", leadMin: [9, 13], summary: "Increase checkout worker threads 32 → 64", version: "v3.9.2" },

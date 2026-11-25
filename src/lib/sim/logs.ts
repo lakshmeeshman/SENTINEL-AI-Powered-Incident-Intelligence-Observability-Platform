@@ -146,6 +146,8 @@ function fill(text: string, seed: number, ctx: { svc: ServiceDef; version?: stri
         return String(Math.round(80 + r() * 4900));
       case "n2":
         return String(Math.round(2 + r() * 46));
+      case "hi":
+        return String(Math.round(471 + r() * 28));
       case "pct":
         return (40 + r() * 52).toFixed(1);
       case "pctHigh":

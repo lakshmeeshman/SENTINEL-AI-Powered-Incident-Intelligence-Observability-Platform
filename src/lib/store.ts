@@ -60,6 +60,8 @@ interface Actions {
   addNote(id: string, text: string, type?: "note" | "action"): void;
   saveAnalysis(a: Analysis): void;
   toggleActionDone(incidentId: string, action: string): void;
+  notify(n: Pick<AppNotification, "title" | "body" | "severity" | "incidentId">): void;
+  clearAnalyses(): void;
   markRead(id: string): void;
   markAllRead(): void;
   clearNotifications(): void;
@@ -240,6 +242,13 @@ export const useSentinel = create<SentinelState>()(
           else done.delete(action);
           set((s) => ({ analyses: { ...s.analyses, [incidentId]: { ...a, completedActions: [...done] } } }));
           if (completing) get().addNote(incidentId, `Completed recommended action: ${action}`, "action");
+        },
+
+        notify(n) {
+          set((s) => ({ notifications: [notif(n), ...s.notifications].slice(0, 60) }));
+        },
+        clearAnalyses() {
+          set({ analyses: {} });
         },
 
         markRead(id) {

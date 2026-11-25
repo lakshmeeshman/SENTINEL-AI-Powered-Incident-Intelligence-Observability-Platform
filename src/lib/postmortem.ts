@@ -35,6 +35,12 @@ export interface Postmortem {
   actionItems: ActionItem[];
 }
 
+/** an analysis written while the incident was still moving can't describe its outcome */
+export function analysisIsStale(incident: Incident, analysis: Analysis, now: number): boolean {
+  if (incident.resolvedAt) return analysis.generatedAt < incident.resolvedAt;
+  return now - analysis.generatedAt > 5 * 60_000;
+}
+
 export const MTTR_TARGET_MIN: Record<Severity, number> = { "SEV-1": 30, "SEV-2": 60, "SEV-3": 240, "SEV-4": 1440 };
 const DAY = 86_400_000;
 

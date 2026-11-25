@@ -100,7 +100,7 @@ export function createSimulatedIncident({ now, incidents, scenarioId, random = M
   const pool = SCENARIOS.filter((s) => !activeScenarios.has(s.id));
   const sc = (scenarioId && SCENARIO_MAP[scenarioId]) || pool[Math.floor(random() * pool.length)] || SCENARIOS[0]!;
   const id = nextIncidentId(incidents);
-  const impactStartedAt = now - 70_000 - Math.floor(random() * 30_000);
+  const impactStartedAt = now - 95_000 - Math.floor(random() * 40_000);
   const detectedAt = now;
   const magnitude = 0.85 + random() * 0.4;
   const commander = ownerFor(sc.origin);

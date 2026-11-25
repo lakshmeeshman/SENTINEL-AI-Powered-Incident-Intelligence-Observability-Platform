@@ -81,18 +81,33 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
     const base = serviceSeries(svc.id, baseTimes, incidents);
     const win = serviceSeries(svc.id, winTimes, incidents);
     series[svc.id] = { base, win };
+    const nearBase = win.filter((p) => p.t >= anchor - 12 * MIN && p.t < anchor - 3 * MIN);
     for (const m of METRICS) {
-      const det = detectAgainstBaseline(
-        win.map((p) => ({ t: p.t, v: p[m.key] })),
-        base.map((p) => p[m.key]),
-        { threshold: m.thr, minRun: 3, direction: m.dir, minRelative: m.minRel }
-      );
-      const segs = det.segments.filter((s) => s.end >= anchor - 12 * MIN);
-      if (!segs.length) continue;
-      // prefer the segment whose onset sits inside the onset window, closest to the expected impact start
+      const samples = win.map((p) => ({ t: p.t, v: p[m.key] }));
+      const opts = { threshold: m.thr, minRun: 3, direction: m.dir, minRelative: m.minRel } as const;
+      const inWin = (seg: { start: number }) => seg.start >= anchor - CLUSTER_BEFORE && seg.start <= anchor + CLUSTER_AFTER;
       const target = anchor - 90_000;
-      const inWindow = segs.filter((s) => s.start >= anchor - CLUSTER_BEFORE && s.start <= anchor + CLUSTER_AFTER);
-      const first = inWindow.length ? inWindow.reduce((a, b) => (Math.abs(b.start - target) < Math.abs(a.start - target) ? b : a)) : segs[0]!;
+      const closest = <T extends { start: number }>(xs: T[]) => xs.reduce((a, b) => (Math.abs(b.start - target) < Math.abs(a.start - target) ? b : a));
+
+      // pass 1: frozen pre-incident baseline
+      const far = detectAgainstBaseline(samples, base.map((p) => p[m.key]), opts);
+      let det = far;
+      let segs = far.segments.filter((sg) => sg.end >= anchor - 12 * MIN);
+      // pass 2: near-term baseline, to catch a new step on top of an already-degraded service
+      if (!segs.some(inWin) && nearBase.length >= 20) {
+        // relax the relative floor only for error rate (a new failure stacking errors on an already-failing service);
+        // latency keeps its floor so organic blips are never mistaken for an onset
+        const near = detectAgainstBaseline(samples, nearBase.map((p) => p[m.key]), { ...opts, minRun: m.key === "errorRate" ? 3 : 4, minRelative: m.key === "errorRate" ? m.minRel * 0.4 : m.minRel });
+        // only steps that are still in progress count; transient blips have already ended
+        const nearSegs = near.segments.filter((sg) => inWin(sg) && sg.end >= winEnd - 2 * STEP);
+        if (nearSegs.length) {
+          det = near;
+          segs = nearSegs;
+        }
+      }
+      if (!segs.length) continue;
+      const windowed = segs.filter(inWin);
+      const first = windowed.length ? closest(windowed) : segs[0]!;
       const peak = segs.reduce((a, b) => (Math.abs(b.peakZ) > Math.abs(a.peakZ) ? b : a));
       const last = segs[segs.length - 1]!;
       candidates.push({
@@ -154,7 +169,10 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
     if (!matched && l.level !== "WARN") unclassified++;
   }
   const hits = [...hitMap.values()];
-  const tw = (t: number) => Math.exp(-Math.max(0, Math.abs(t - estStart) - 90_000) / (4 * MIN));
+  // signatures already present well before onset are background from another event, not fresh evidence
+  const fresh = (t: number) => Math.exp(-Math.max(0, Math.abs(t - estStart) - 90_000) / (4 * MIN));
+  const allBackground = hits.length > 0 && hits.every((h) => h.firstSeen < estStart - 4 * MIN);
+  const tw = (t: number) => (t < estStart - 4 * MIN ? (allBackground || preExisting ? 0.5 : 0) : fresh(t));
   const modeScores = new Map<string, { weighted: number; count: number }>();
   for (const h of hits) {
     const cur = modeScores.get(h.mode) ?? { weighted: 0, count: 0 };
@@ -198,7 +216,7 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
   /* mode selection: logs first, keywords as a fallback */
   let mode: FailureMode | undefined;
   const best = [...modeScores.entries()].sort((a, b) => b[1].weighted - a[1].weighted)[0];
-  if (best && best[1].weighted >= 3) mode = MODE_MAP[best[0]];
+  if (best && best[1].weighted >= 1) mode = MODE_MAP[best[0]];
   let keywordMode = false;
   if (!mode && !cluster.length) {
     const text = `${incident.title} ${incident.description}`.toLowerCase();
@@ -381,7 +399,7 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
   const burnPct = (failed / budget) * 100;
   const commerceCands = errorCands.filter((c) => c.service === "orders-service" || c.service === "payments-service");
   const revenue = commerceCands.length
-    ? Math.round(commerceCands.reduce((a, c) => a + excessIn(c.service, ...windowFor(c)).failed * (c.service === "orders-service" ? 0.34 : 0.6) * 84, 0))
+    ? Math.round(commerceCands.reduce((a, c) => a + excessIn(c.service, ...windowFor(c)).failed * (c.service === "orders-service" ? 0.04 : 0.12) * 84, 0))
     : null;
   const inImpact = (id: string) => series[id]!.win.filter((p) => p.t >= estStart && p.t <= impactEnd);
   const peakErrorRate = Math.max(0, ...inImpact("api-gateway").map((p) => p.errorRate), ...inImpact("edge-cdn").map((p) => p.errorRate));
@@ -466,7 +484,7 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
   if (cluster.length && origin) {
     const lagTxt = !manual && detectionLag > 0 ? `, ${formatDuration(detectionLag)} before Sentinel opened the incident` : "";
     summary = `${sevPhrase} ${statusPhrase}. Sentinel correlated ${cluster.length} metric anomal${cluster.length === 1 ? "y" : "ies"} across ${clusterServices.length} service${clusterServices.length > 1 ? "s" : ""}. The first signal was ${METRIC_LABEL[facts.metric].toLowerCase()} on ${origin} at ${formatClock(estStart)} (${facts.ratio >= 1 ? `${facts.ratio.toFixed(1)}× baseline` : `${Math.round((1 - facts.ratio) * 100)}% below baseline`}, ${formatSigma(facts.z)})${lagTxt}${callers.length ? `. Symptoms then reached ${list(callers.slice(0, 3))}` : ""}.`;
-    if (facts.topHit) summary += ` ${bestCount} log lines match the "${mode!.label.toLowerCase()}" signature, led by "${facts.topHit.label.toLowerCase()}" on ${facts.topHit.service}.`;
+    if (facts.topHit && mode && bestCount) summary += ` ${bestCount} log lines match the "${mode!.label.toLowerCase()}" signature, led by "${facts.topHit.label.toLowerCase()}" on ${facts.topHit.service}.`;
     if (change) summary += ` A correlated change landed ${Math.round(changeLeadMin!)} min earlier: ${change.summary}.`;
     summary += ` Most likely cause: ${rootCause.title.charAt(0).toLowerCase()}${rootCause.title.slice(1)} (${confidence}% confidence).`;
     if (preExisting && related.length) summary += ` The anomaly predates the reported start, so this report likely duplicates ${related[0]}.`;
