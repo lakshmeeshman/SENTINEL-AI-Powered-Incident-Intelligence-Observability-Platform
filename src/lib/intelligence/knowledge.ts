@@ -45,9 +45,11 @@ export interface FailureMode {
 
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 const callersText = (f: Facts) => (f.callers.length ? list(f.callers.slice(0, 3)) : "its clients");
+export const changeLabel = (kind: ChangeEvent["kind"]) =>
+  kind === "deploy" ? "deploy" : kind === "config" ? "config change" : kind === "flag" ? "feature flag change" : "infrastructure change";
 const changeText = (f: Facts) =>
   f.change
-    ? `${f.change.kind === "deploy" ? `the ${f.change.service} ${f.change.version ?? ""} deploy` : `a ${f.change.kind} change on ${f.change.service}`} ("${f.change.summary}") ${Math.round(f.changeLeadMin ?? 0)} min before onset`
+    ? `${f.change.kind === "deploy" ? `the ${f.change.service} ${f.change.version ?? ""} deploy` : `${f.change.kind === "infra" ? "an" : "a"} ${changeLabel(f.change.kind)} on ${f.change.service}`} ("${f.change.summary}") ${Math.round(f.changeLeadMin ?? 0)} min before onset`
     : "";
 
 export const FAILURE_MODES: FailureMode[] = [

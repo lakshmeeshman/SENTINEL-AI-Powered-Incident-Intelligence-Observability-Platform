@@ -41,7 +41,7 @@ export default function OverviewPage() {
     const traffic = gw.map((p, i) => ({ t: p.t, rps: p.rps, yesterday: compare[i]?.rps ?? 0 }));
     const det = detectAdaptive(
       gwAll.map((p) => ({ t: p.t, v: p.errorRate })),
-      { window: 40, threshold: 4, minRun: 2, minRelative: 1.2, adaptAfter: Infinity }
+      { window: 40, threshold: 4, minRun: 3, minRelative: 0.5, adaptAfter: Infinity }
     );
     const bands: Band[] = det.segments.map((s) => ({ x1: s.start, x2: s.end + RANGE_STEP[range] }));
     const errors = gw.map((p, i) => ({ t: p.t, errorRate: p.errorRate, baseline: det.baseline[i + PREFIX] ?? 0 }));

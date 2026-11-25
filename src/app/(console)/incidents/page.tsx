@@ -259,7 +259,7 @@ function IncidentRow({ incident: i, now, onResolve }: { incident: Incident; now:
   const duration = (i.resolvedAt ?? now) - i.impactStartedAt;
   return (
     <li className="group relative grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 px-4 py-3 transition hover:bg-white/[0.02] lg:grid-cols-[88px_minmax(0,1fr)_138px_150px_120px_96px_40px] lg:items-center lg:gap-4">
-      <div className="col-span-2 flex items-center gap-2 lg:col-span-1">
+      <div className="flex items-center gap-2">
         <SeverityBadge severity={i.severity} pulse={active && (i.severity === "SEV-1" || i.severity === "SEV-2")} />
         <span className="font-mono text-[11px] text-ink-subtle lg:hidden">{i.id}</span>
       </div>

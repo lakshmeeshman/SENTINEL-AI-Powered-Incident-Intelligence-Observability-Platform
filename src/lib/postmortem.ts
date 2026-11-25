@@ -1,5 +1,6 @@
 import { SERVICE_MAP, ownerFor } from "@/lib/catalog/services";
 import { METRIC_LABEL } from "@/lib/sim/telemetry";
+import { changeLabel } from "@/lib/intelligence/knowledge";
 import type { Analysis, Incident, RecommendedAction, Severity } from "@/lib/types";
 import { formatCompact, formatCurrency, formatDateLong, formatDuration, formatPct, formatSigma } from "@/lib/utils";
 
@@ -56,7 +57,7 @@ export function buildPostmortem(incident: Incident, analysis: Analysis, now: num
 
   const timeline: PostmortemTimelineItem[] = [];
   for (const c of analysis.evidence.changes.slice(0, 2)) {
-    timeline.push({ at: c.at, kind: "change", actor: c.author, label: `${c.kind === "deploy" ? `Deployed ${c.service} ${c.version ?? ""}` : `${c.kind} change on ${c.service}`}: ${c.summary}` });
+    timeline.push({ at: c.at, kind: "change", actor: c.author, label: `${c.kind === "deploy" ? `Deployed ${c.service} ${c.version ?? ""}` : `${changeLabel(c.kind)[0]!.toUpperCase()}${changeLabel(c.kind).slice(1)} on ${c.service}`}: ${c.summary}` });
   }
   const seen = new Set<string>();
   for (const a of analysis.anomalies) {
@@ -87,7 +88,7 @@ export function buildPostmortem(incident: Incident, analysis: Analysis, now: num
   if (duration > target * 60_000) wentWrong.push(`${resolved ? "Resolution" : "The incident has run"} ${formatDuration(duration, { short: true })}, beyond the ${incident.severity} target of ${formatDuration(target * 60_000, { short: true })}.`);
   if (analysis.impact.services.length > 4) wentWrong.push(`The failure propagated to ${analysis.impact.services.length} services${analysis.evidence.propagationPath.length > 1 ? ` via ${analysis.evidence.propagationPath.join(" → ")}` : ""}.`);
   if (change?.kind === "deploy") wentWrong.push(`${change.service} ${change.version ?? ""} reached full traffic without a canary hold.`);
-  if (change && change.kind !== "deploy") wentWrong.push(`A ${change.kind} change shipped without staged rollout or automated validation.`);
+  if (change && change.kind !== "deploy") wentWrong.push(`${change.kind === "infra" ? "An" : "A"} ${changeLabel(change.kind)} shipped without staged rollout or automated validation.`);
   if (analysis.impact.failedRequests > 50_000) wentWrong.push(`About ${formatCompact(analysis.impact.failedRequests)} failed requests reached customers before mitigation.`);
   if (!wentWrong.length) wentWrong.push("No significant process gaps were identified.");
 

@@ -14,7 +14,7 @@ import type {
   RecommendedAction,
 } from "@/lib/types";
 import { clamp, formatClock, formatCompact, formatDuration, formatPct, formatSigma } from "@/lib/utils";
-import { FAILURE_MODES, MODE_MAP, genericNarrative, type Facts, type FailureMode } from "./knowledge";
+import { FAILURE_MODES, MODE_MAP, changeLabel, genericNarrative, type Facts, type FailureMode } from "./knowledge";
 
 /*
  * Sentinel deterministic root-cause engine.
@@ -337,7 +337,7 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
       label: "Change correlation",
       weight: 0.12,
       score: clamp(changeScore, 0, 1),
-      detail: change ? `${change.kind} on ${change.service} ${Math.round(changeLeadMin!)}m before onset` : "No change inside the causal horizon",
+      detail: change ? `${changeLabel(change.kind)} on ${change.service} ${Math.round(changeLeadMin!)}m before onset` : "No change inside the causal horizon",
     },
     {
       id: "shape",
@@ -426,7 +426,7 @@ export function analyzeIncident({ incident, incidents, changes, now }: EngineInp
 
   /* contributing factors */
   const factors: string[] = [];
-  if (change) factors.push(`Change: ${change.kind === "deploy" ? `${change.service} ${change.version ?? ""} deployed` : `${change.kind} change on ${change.service}`} by ${change.author} ${Math.round(changeLeadMin!)} min before onset ("${change.summary}").`);
+  if (change) factors.push(`Change: ${change.kind === "deploy" ? `${change.service} ${change.version ?? ""} deployed` : `${changeLabel(change.kind)} on ${change.service}`} by ${change.author} ${Math.round(changeLeadMin!)} min before onset ("${change.summary}").`);
   if (mode && cluster.length) factors.push(...mode.factors(facts));
   const gwRps = series["api-gateway"]!;
   const gwBaseline = median(gwRps.base.map((p) => p.rps));

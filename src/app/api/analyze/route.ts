@@ -35,7 +35,8 @@ export async function POST(req: Request) {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      return NextResponse.json({ mode: "demo", reason: `Anthropic API ${res.status}`, detail: detail.slice(0, 300) });
+      console.warn(`[sentinel] Anthropic API ${res.status}: ${detail.slice(0, 300)}`);
+      return NextResponse.json({ mode: "demo", reason: `Anthropic API returned ${res.status}` });
     }
     const data = (await res.json()) as { content?: { type: string; text?: string }[] };
     const text = (data.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
