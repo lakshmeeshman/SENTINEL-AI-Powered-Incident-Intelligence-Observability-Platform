@@ -4,7 +4,7 @@ import fs from "node:fs";
 const base = process.argv[2] ?? "http://localhost:3000";
 const out = "scripts/.screens/e2e";
 fs.mkdirSync(out, { recursive: true });
-const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new", args: ["--no-sandbox", "--disable-gpu"] });
+const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH ?? "/usr/bin/google-chrome", headless: "new", args: ["--no-sandbox", "--disable-gpu"] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1500, height: 950 });
 const client = await page.createCDPSession();

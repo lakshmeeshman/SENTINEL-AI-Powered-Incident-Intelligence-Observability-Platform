@@ -43,5 +43,15 @@
     "tailwindcss": "^4.1.18",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
-  }
+  },
+  "license": "MIT",
+  "keywords": [
+    "observability",
+    "incident-management",
+    "aiops",
+    "root-cause-analysis",
+    "sre",
+    "nextjs",
+    "anomaly-detection"
+  ]
 }

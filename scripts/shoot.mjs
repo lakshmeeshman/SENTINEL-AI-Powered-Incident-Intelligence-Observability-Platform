@@ -3,7 +3,7 @@ import puppeteer from "puppeteer-core";
 import fs from "node:fs";
 const [base, out, ...targets] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
-const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", headless: "new", args: ["--no-sandbox", "--disable-gpu", "--hide-scrollbars"] });
+const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH ?? "/usr/bin/google-chrome", headless: "new", args: ["--no-sandbox", "--disable-gpu", "--hide-scrollbars"] });
 const errors = [];
 for (const t of targets) {
   const [pathPart, action] = t.split("#");

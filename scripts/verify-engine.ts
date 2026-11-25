@@ -2,6 +2,7 @@ import { buildSeed } from "../src/lib/sim/seed";
 import { analyzeIncident } from "../src/lib/intelligence/engine";
 import { createSimulatedIncident, createManualIncident } from "../src/lib/sim/factory";
 import { SCENARIOS, SCENARIO_MAP } from "../src/lib/catalog/scenarios";
+import { mergeNarrative, parseNarrative } from "../src/lib/intelligence/ai";
 
 const now = Date.now();
 const seed = buildSeed(now);
@@ -42,4 +43,14 @@ console.log("   manual summary:", a.executiveSummary);
 const m2 = createManualIncident({ title: "Admin dashboard TLS certificate warning", severity: "SEV-4", description: "Internal users see cert warning", services: ["edge-cdn"], startedMinutesAgo: 2, reporter: "Alex" }, now - 3*86400_000, seed.incidents);
 const a2 = report(m2, seed.incidents.filter(i=>i.impactStartedAt < now-3*86400_000 - 3600_000 || i.status!=="resolved"), seed.changes, now - 3*86400_000 + 60_000);
 console.log("   manual2 summary:", a2.executiveSummary);
+// AI narrative parsing + merge (no network): numbers must stay measured
+{
+  const base = analyzeIncident({ incident: seed.incidents[0]!, incidents: seed.incidents, changes: seed.changes, now });
+  const fake = "Here is the analysis:\n" + JSON.stringify({ executiveSummary: "Summary from model.", rootCause: { title: "Pool exhaustion on postgres-primary", detail: "Detail." }, contributingFactors: ["a", "b"], actions: [{ priority: "P0", action: "Roll back", rationale: "r" }, { priority: "PX", action: "Odd priority", rationale: "r" }], prevention: ["p"], impactSummary: "Impact." }) + "\nDone.";
+  const n = parseNarrative(fake);
+  const merged = n ? mergeNarrative(base, n, "claude-test") : null;
+  const pass = !!merged && merged.mode === "ai" && merged.confidence === base.confidence && merged.impact.failedRequests === base.impact.failedRequests && merged.actions[1]!.priority === "P1" && merged.rootCause.service === base.rootCause.service && parseNarrative("no json here") === null;
+  total++; if (pass) ok++;
+  console.log(`${pass ? "PASS" : "FAIL"} AI narrative parse/merge keeps measured numbers`);
+}
 console.log(`\n${ok}/${total} correct`);
