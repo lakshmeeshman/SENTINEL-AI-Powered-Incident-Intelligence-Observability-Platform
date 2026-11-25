@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────
+   SENTINEL design tokens
+   Cyan  = what the system observes (telemetry, live signal)
+   Violet = what Sentinel concludes (intelligence, confidence)
+   Status colors are reserved for state and always ship with an icon + label.
+   ────────────────────────────────────────────────────────────── */
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --color-midnight: #080b12;
+  --color-panel: #0c1019;
+  --color-raised: #111622;
+  --color-overlay: #151b29;
+  --color-hairline: rgb(148 163 196 / 0.09);
+  --color-hairline-strong: rgb(148 163 196 / 0.16);
+
+  --color-ink: #e8ebf4;
+  --color-ink-muted: #949cb0;
+  --color-ink-subtle: #5f6880;
+  --color-ink-faint: #3c4458;
+
+  --color-signal: #36d6e7;
+  --color-signal-dim: #1b8f9d;
+  --color-intel: #8b7cf6;
+  --color-intel-bright: #b3a8ff;
+  --color-intel-dim: #5b4bc4;
+
+  --color-good: #34d399;
+  --color-warning: #fbbf24;
+  --color-serious: #fb923c;
+  --color-critical: #f43f5e;
+  --color-info: #60a5fa;
+
+  --color-sev1: #f43f5e;
+  --color-sev2: #fb923c;
+  --color-sev3: #fbbf24;
+  --color-sev4: #7dd3fc;
+
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 9px;
+
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-scan: scan 3.2s ease-in-out infinite;
+  --animate-blink: blink 1s step-end infinite;
+
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    80%, 100% { transform: scale(2.4); opacity: 0; }
+  }
+  @keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  @keyframes scan {
+    0%, 100% { transform: translateX(-30%); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateX(130%); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes dash {
+    to { stroke-dashoffset: -20; }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body {
+    background: var(--color-midnight);
+    color: var(--color-ink);
+  }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: rgb(139 124 246 / 0.35);
+    color: #fff;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--color-intel);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 196 / 0.18) transparent;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgb(148 163 196 / 0.16); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+}
+
+@layer components {
+  /* App backdrop: fine grid fading out from the top, a faint violet/cyan aurora, film grain. */
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(900px 420px at 18% -8%, rgb(139 124 246 / 0.10), transparent 60%),
+      radial-gradient(700px 380px at 88% -12%, rgb(54 214 231 / 0.07), transparent 60%);
+  }
+  .backdrop::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, rgb(148 163 196 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 196 / 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 55% at 50% 0%, #000 30%, transparent 100%);
+  }
+  .backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  /* Panels: quiet surfaces separated by hairlines; a 1px top highlight gives them depth. */
+  .panel {
+    position: relative;
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.018), rgb(255 255 255 / 0) 40%), var(--color-panel);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.03),
+      0 1px 2px rgb(0 0 0 / 0.4),
+      0 12px 32px -16px rgb(0 0 0 / 0.6);
+  }
+  .glass {
+    background: rgb(15 20 31 / 0.72);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--color-hairline-strong);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.05),
+      0 24px 64px -12px rgb(0 0 0 / 0.7);
+  }
+  .skeleton {
+    background: linear-gradient(90deg, rgb(148 163 196 / 0.05) 0%, rgb(148 163 196 / 0.11) 50%, rgb(148 163 196 / 0.05) 100%);
+    background-size: 800px 100%;
+    animation: var(--animate-shimmer);
+    border-radius: var(--radius-sm);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .intel-border {
+    background:
+      linear-gradient(var(--color-panel), var(--color-panel)) padding-box,
+      linear-gradient(135deg, rgb(139 124 246 / 0.55), rgb(54 214 231 / 0.25) 40%, rgb(148 163 196 / 0.08) 70%) border-box;
+    border: 1px solid transparent;
+  }
+  .text-gradient-signal {
+    background: linear-gradient(90deg, #b3a8ff, #36d6e7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+/* React Flow theme overrides */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: rgb(148 163 196 / 0.28);
+  --xy-controls-button-background-color: #111622;
+  --xy-controls-button-background-color-hover: #151b29;
+  --xy-controls-button-color: #949cb0;
+  --xy-controls-button-border-color: rgb(148 163 196 / 0.12);
+  --xy-minimap-background-color: #0c1019;
+  --xy-attribution-background-color: transparent;
+}
+.react-flow__controls {
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid rgb(148 163 196 / 0.12);
+  box-shadow: none !important;
+}
+.react-flow__controls-button svg { fill: currentColor; }
+.react-flow__attribution { display: none; }
+.react-flow__minimap { border-radius: 7px; border: 1px solid rgb(148 163 196 / 0.12); overflow: hidden; }
+
+/* Recharts polish */
+.recharts-cartesian-grid line { stroke: rgb(148 163 196 / 0.07); }
+.recharts-text { fill: #5f6880; font-size: 11px; }
+.recharts-surface:focus, .recharts-wrapper:focus, .recharts-sector:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* Print: the postmortem report becomes a clean document. */
+@media print {
+  html, body { background: #fff !important; color: #111 !important; }
+  .backdrop, .no-print { display: none !important; }
+  .print-sheet { box-shadow: none !important; border: none !important; margin: 0 !important; max-width: none !important; padding: 0 !important; }
+  @page { margin: 18mm 16mm; }
+}
