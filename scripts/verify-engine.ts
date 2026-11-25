@@ -7,13 +7,14 @@ const now = Date.now();
 const seed = buildSeed(now);
 let ok = 0, total = 0;
 const report = (inc: any, incidents: any[], changes: any[], at = now) => {
+  const lagTxt = `lag=${Math.round((at - inc.detectedAt)/1000)}s`;
   const t0 = performance.now();
   const a = analyzeIncident({ incident: inc, incidents, changes, now: at });
   const ms = performance.now() - t0;
   const truth = inc.sim ? SCENARIO_MAP[inc.sim.scenarioId] : undefined;
   const pass = truth ? a.rootCause.failureMode === truth.id && a.rootCause.service === truth.origin : true;
   total++; if (pass) ok++;
-  console.log(`${pass ? "PASS" : "FAIL"} ${inc.id} [${inc.status}] truth=${truth?.id ?? "manual"}@${truth?.origin ?? "-"} → ${a.rootCause.failureMode}@${a.rootCause.service} conf=${a.confidence}% anomalies=${a.anomalies.length} logs=${a.evidence.logsAnalyzed} failed=${a.impact.failedRequests} change=${a.evidence.changes[0]?.summary ?? "-"} (${ms.toFixed(0)}ms)`);
+  console.log(`${pass ? "PASS" : "FAIL"} ${inc.id} [${inc.status}] ${lagTxt} truth=${truth?.id ?? "manual"}@${truth?.origin ?? "-"} → ${a.rootCause.failureMode}@${a.rootCause.service} conf=${a.confidence}% anomalies=${a.anomalies.length} logs=${a.evidence.logsAnalyzed} failed=${a.impact.failedRequests} change=${a.evidence.changes[0]?.summary ?? "-"} (${ms.toFixed(0)}ms)`);
   if (!pass || process.env.V) { console.log("   ", a.executiveSummary); console.log("   ", a.signals.map(s=>`${s.id}:${s.score.toFixed(2)}`).join(" ")); console.log("   ", a.anomalies.slice(0,6).map(x=>`${x.service}.${x.metric}@${x.offsetSec}s z=${x.peakZ.toFixed(1)}`).join(" | ")); }
   return a;
 };
@@ -24,6 +25,15 @@ for (const sc of SCENARIOS) {
   const { incident, change } = createSimulatedIncident({ now: now - 4*60_000, incidents: base, scenarioId: sc.id, random: Math.random });
   const incs = [...base, incident];
   report(incident, incs, change ? [change, ...seed.changes] : seed.changes, now);
+}
+// harder: analysed seconds after detection, while the seeded incidents are still active
+const activeScenarios = new Set(seed.incidents.filter(i => i.status !== "resolved").map(i => i.sim!.scenarioId));
+for (const sc of SCENARIOS.filter(s => !activeScenarios.has(s.id))) {
+  for (const lag of [0, 3_000, 30_000]) {
+    const { incident, change } = createSimulatedIncident({ now, incidents: seed.incidents, scenarioId: sc.id, random: Math.random });
+    const incs = [...seed.incidents, incident];
+    report(incident, incs, change ? [change, ...seed.changes] : seed.changes, now + lag);
+  }
 }
 // manual incident overlapping active INC-2047
 const m = createManualIncident({ title: "Customers say checkout is slow", severity: "SEV-3", description: "Support tickets about checkout spinning", services: ["orders-service"], startedMinutesAgo: 5, reporter: "Alex" }, now, seed.incidents);
